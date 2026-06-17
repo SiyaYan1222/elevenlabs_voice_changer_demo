@@ -1447,63 +1447,63 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
             idv_load_btn.click(fn=set_idv_url, inputs=[idv_url_input], outputs=[idv_url_input, idv_embed])
             idv_url_input.submit(fn=set_idv_url, inputs=[idv_url_input], outputs=[idv_url_input, idv_embed])
 
+        with gr.Tab("5. Model Comparison"):
+            gr.Markdown(
+                "Concise comparison based on current hands-on tests. Use the audio players below for side-by-side playback.",
+                elem_classes="mode-note",
+            )
+            gr.HTML(render_comparison_html())
+            gr.Markdown("### Output audio comparison")
+            gr.Markdown(
+                "The comparison players below load from the local `data/` folder when the files exist. "
+                "You can also upload/replace files manually. Expected folder: `./data/`."
+            )
+            with gr.Row():
+                eleven_tts_audio = gr.Audio(
+                    value=data_audio_path("eleven_tts"),
+                    label="ElevenLabs TTS · Divij_2min_ElevenLabs_InstantClone_TTS.mp3",
+                    sources=["upload"],
+                    type="filepath",
+                )
+                eleven_sts_audio = gr.Audio(
+                    value=data_audio_path("eleven_sts"),
+                    label="ElevenLabs STS · Divij_2min_ElevenLabs_InstantClone_STS.mp3",
+                    sources=["upload"],
+                    type="filepath",
+                )
+            with gr.Row():
+                cartesia_tts_audio = gr.Audio(
+                    value=data_audio_path("cartesia_tts"),
+                    label="Cartesia TTS · Divij_10sec_Cartesia_InstantClone_TTS.wav",
+                    sources=["upload"],
+                    type="filepath",
+                )
+                cartesia_sts_audio = gr.Audio(
+                    value=data_audio_path("cartesia_sts"),
+                    label="Cartesia STS · Divij_10sec_Cartesia_InstantClone_STS.mp3",
+                    sources=["upload"],
+                    type="filepath",
+                )
+            with gr.Row():
+                resemble_tts_audio = gr.Audio(
+                    value=data_audio_path("resemble_tts"),
+                    label="Resemble TTS · Divij_2min_Resemble_Clone_TTS.wav",
+                    sources=["upload"],
+                    type="filepath",
+                )
+                resemble_sts_audio = gr.Audio(
+                    value=data_audio_path("resemble_sts"),
+                    label="Resemble STS · Divij_2min_Resemble_Clone_STS.wav",
+                    sources=["upload"],
+                    type="filepath",
+                )
 
-    with gr.Accordion("Apps on markets", open=False):
-        gr.Markdown("Mobile app references for consumer-style voice changer UX and screenshots.")
-        gr.HTML(render_market_apps_html())
+        with gr.Tab("6. Market References"):
+            gr.Markdown("Mobile app references for consumer-style voice changer UX and screenshots.", elem_classes="mode-note")
+            gr.HTML(render_market_apps_html())
 
     with gr.Accordion("Useful links", open=False, elem_id="useful-links-anchor"):
         gr.HTML(render_useful_links_html())
-
-    with gr.Accordion("Model / audio input performance comparison", open=False):
-        gr.Markdown(
-            "Concise comparison based on current hands-on tests. Use the audio players below for side-by-side playback."
-        )
-        gr.HTML(render_comparison_html())
-        gr.Markdown("### Output audio comparison")
-        gr.Markdown(
-            "The comparison players below load from the local `data/` folder when the files exist. "
-            "You can also upload/replace files manually. Expected folder: `./data/`."
-        )
-        with gr.Row():
-            eleven_tts_audio = gr.Audio(
-                value=data_audio_path("eleven_tts"),
-                label="ElevenLabs TTS · Divij_2min_ElevenLabs_InstantClone_TTS.mp3",
-                sources=["upload"],
-                type="filepath",
-            )
-            eleven_sts_audio = gr.Audio(
-                value=data_audio_path("eleven_sts"),
-                label="ElevenLabs STS · Divij_2min_ElevenLabs_InstantClone_STS.mp3",
-                sources=["upload"],
-                type="filepath",
-            )
-        with gr.Row():
-            cartesia_tts_audio = gr.Audio(
-                value=data_audio_path("cartesia_tts"),
-                label="Cartesia TTS · Divij_10sec_Cartesia_InstantClone_TTS.wav",
-                sources=["upload"],
-                type="filepath",
-            )
-            cartesia_sts_audio = gr.Audio(
-                value=data_audio_path("cartesia_sts"),
-                label="Cartesia STS · Divij_10sec_Cartesia_InstantClone_STS.mp3",
-                sources=["upload"],
-                type="filepath",
-            )
-        with gr.Row():
-            resemble_tts_audio = gr.Audio(
-                value=data_audio_path("resemble_tts"),
-                label="Resemble TTS · Divij_2min_Resemble_Clone_TTS.wav",
-                sources=["upload"],
-                type="filepath",
-            )
-            resemble_sts_audio = gr.Audio(
-                value=data_audio_path("resemble_sts"),
-                label="Resemble STS · Divij_2min_Resemble_Clone_STS.wav",
-                sources=["upload"],
-                type="filepath",
-            )
 
 
 
