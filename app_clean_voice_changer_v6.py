@@ -1,4 +1,5 @@
 import os
+import random
 import wave
 import time
 import queue
@@ -18,15 +19,39 @@ load_dotenv()
 
 ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
 
+TEXT_SAMPLES = [
+    "My voice confirms my identity for this verification test.",
+    "This is a live voice changer demonstration using a cloned voice.",
+    "The system converts my spoken words into the target voice.",
+    "Please verify that this voice sample matches the enrolled speaker.",
+    "Today I am testing speaker verification and synthetic voice detection.",
+    "A short sentence is easier to convert quickly and clearly.",
+    "The quick brown fox jumps over the lazy dog.",
+    "Access granted after successful voice identity confirmation.",
+]
+
+RECORDING_PROMPTS = [
+    "My voice confirms my identity for this verification test.",
+    "I am speaking clearly for the voice conversion demo.",
+    "Please verify this short recording against the enrolled speaker.",
+    "This sentence is recorded first and then converted into the cloned voice.",
+    "The system should transcribe this sentence and replay it in the target voice.",
+    "I will speak one sentence and pause for the demo workflow.",
+]
+
+DEMO_SCRIPT = """Suggested demo flow:
+1. Read one sentence clearly.
+2. Pause for about one second.
+3. Wait for the cloned voice output.
+4. Continue with the next sentence.
+
+Best practice: use short sentences and headphones to avoid duplicate feedback."""
+
 SAMPLE_RATE = 16000
 CHANNELS = 1
 FRAME_MS = 30
 FRAME_SAMPLES = int(SAMPLE_RATE * FRAME_MS / 1000)
 FRAME_BYTES = FRAME_SAMPLES * 2  # int16 mono
-
-SPEAKER_ID_URL = "https://huggingface.co/spaces/nithinraok/titanet-speaker-verification"
-DEEPFAKE_DETECTION_URL = "https://zwlb2f42bkx9.demo.cloud.phonexia.com/app/deepfake-detection"
-
 
 @dataclass
 class AppState:
@@ -85,6 +110,16 @@ def get_voice_id(voice_id_input: str) -> str:
     voice_id = (voice_id_input or "").strip() or os.getenv("ELEVENLABS_VOICE_ID", "").strip()
     if not voice_id:
         raise gr.Error("Missing Voice ID. Paste it in Settings or set ELEVENLABS_VOICE_ID in .env.")
+    return voice_id
+
+
+def get_example_voice_id(example_voice_id_input: str) -> str:
+    voice_id = (example_voice_id_input or "").strip() or os.getenv("ELEVENLABS_EXAMPLE_VOICE_ID", "").strip()
+    if not voice_id:
+        raise gr.Error(
+            "Missing example recording voice ID. Set ELEVENLABS_EXAMPLE_VOICE_ID in .env "
+            "or paste it in Settings. This should be a different/source voice from the target cloned voice."
+        )
     return voice_id
 
 
@@ -175,6 +210,50 @@ def merge_wav_files(wav_paths: List[str]) -> Optional[str]:
                 out_wav.writeframes(in_wav.readframes(in_wav.getnframes()))
             out_wav.writeframes(np.zeros(int(SAMPLE_RATE * 0.25), dtype=np.int16).tobytes())
     return output.name
+
+
+def random_text_sample():
+    return random.choice(TEXT_SAMPLES)
+
+
+def random_recording_prompt():
+    return random.choice(RECORDING_PROMPTS)
+
+
+def generate_example_recordings(api_key_input, example_voice_id_input, model_id, stability, similarity_boost):
+    """Generate short source-voice example clips.
+
+    These should use a DIFFERENT voice from the target cloned voice.
+    Configure via ELEVENLABS_EXAMPLE_VOICE_ID in .env or the Settings field.
+    """
+    api_key = get_api_key(api_key_input)
+    example_voice_id = get_example_voice_id(example_voice_id_input)
+    selected = RECORDING_PROMPTS[:3]
+    outputs = []
+    for prompt in selected:
+        outputs.append(
+            tts_to_wav_file(
+                prompt,
+                example_voice_id,
+                api_key,
+                model_id,
+                stability,
+                similarity_boost,
+            )
+        )
+    summary = (
+        "Generated source/example recordings with ELEVENLABS_EXAMPLE_VOICE_ID:\n"
+        + "\n".join(f"- {x}" for x in selected)
+        + "\n\nExample 1 has also been loaded into the clip input, so you can click Convert Clip directly."
+    )
+    # Return audio outputs, stored states, summary, and load Example 1 into clip input.
+    return outputs[0], outputs[1], outputs[2], outputs[0], outputs[1], outputs[2], summary, outputs[0]
+
+
+def use_example_recording(path):
+    if not path:
+        raise gr.Error("Generate example recordings first.")
+    return path
 
 
 def check_api(api_key_input: str):
@@ -465,21 +544,114 @@ def build_merged_audio():
 
 
 CUSTOM_CSS = """
-#hero {padding: 18px 22px; border-radius: 18px; background: linear-gradient(120deg, #111827, #1f2937); color: white; margin-bottom: 12px;}
-#hero h1 {margin: 0 0 6px 0; font-size: 28px;}
-#hero p {margin: 0; opacity: 0.88;}
-.mode-note {font-size: 0.95rem; opacity: 0.85;}
-.external-card {border: 1px solid #e5e7eb; border-radius: 14px; padding: 12px;}
-iframe.external-frame {width: 100%; height: 720px; border: 1px solid #e5e7eb; border-radius: 12px;}
-"""
+:root {
+  --primary: #2563eb;
+  --primary-soft: #dbeafe;
+  --accent: #7c3aed;
+  --ink: #111827;
+  --muted: #6b7280;
+  --panel: #ffffff;
+  --panel-border: #e5e7eb;
+}
 
+html {
+  overflow-y: scroll;
+}
+
+.gradio-container {
+  width: 96vw !important;
+  max-width: 1480px !important;
+  min-width: 1080px !important;
+  margin: 0 auto !important;
+  background: #f8fafc !important;
+}
+
+@media (max-width: 1120px) {
+  .gradio-container {
+    min-width: auto !important;
+    width: 98vw !important;
+  }
+}
+
+#hero {
+  padding: 24px 28px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 45%, #f5f3ff 100%);
+  border: 1px solid #dbeafe;
+  color: var(--ink);
+  margin-bottom: 16px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+#hero h1 {
+  margin: 0 0 8px 0;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: #0f172a !important;
+  font-weight: 800;
+}
+
+#hero p {
+  margin: 0;
+  color: #334155 !important;
+  font-size: 16px;
+}
+
+#hero .tagline {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #ffffffcc;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mode-note {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.compact-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 14px;
+  background: var(--panel);
+}
+
+button.primary, .primary button {
+  border-radius: 12px !important;
+}
+
+textarea, input, .wrap, .block {
+  border-radius: 12px !important;
+}
+
+.tabitem {
+  background: #ffffff !important;
+  border-radius: 0 0 18px 18px !important;
+  padding: 12px !important;
+}
+
+.panel-soft {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 10px;
+}
+"""
 
 with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
     gr.HTML(
         """
         <div id="hero">
+          <div class="tagline">Local Demo · ElevenLabs Cloned Voice</div>
           <h1>Voice Changer Lab</h1>
-          <p>Text, recorded clip, and serial realtime microphone conversion using your cloned ElevenLabs voice.</p>
+          <p>Convert text, recorded clips, or live microphone speech into your cloned voice.</p>
         </div>
         """
     )
@@ -488,7 +660,8 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
         gr.Markdown("Use `.env` for a cleaner demo: `ELEVENLABS_API_KEY=...` and optional `ELEVENLABS_VOICE_ID=...`.")
         with gr.Row():
             api_key_input = gr.Textbox(label="ElevenLabs API Key", placeholder="Leave empty if using .env", type="password")
-            voice_id_input = gr.Textbox(label="Voice ID", placeholder="Leave empty if using ELEVENLABS_VOICE_ID in .env")
+            voice_id_input = gr.Textbox(label="Target Voice ID", placeholder="Leave empty if using ELEVENLABS_VOICE_ID in .env")
+            example_voice_id_input = gr.Textbox(label="Example Source Voice ID", placeholder="Leave empty if using ELEVENLABS_EXAMPLE_VOICE_ID in .env")
         with gr.Row():
             model_id_input = gr.Dropdown(
                 label="TTS Model",
@@ -504,12 +677,17 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
 
     with gr.Tabs():
         with gr.Tab("1. Text Voice Changer"):
-            gr.Markdown("Type text and generate it using the cloned voice.", elem_classes="mode-note")
-            text_input = gr.Textbox(label="Text", lines=4, placeholder="Type a sentence to test the cloned voice...")
+            gr.Markdown("Type text and generate it using the cloned voice. Use a sample when you want a quick clean demo sentence.", elem_classes="mode-note")
+            with gr.Row():
+                random_text_btn = gr.Button("Random Sample")
+                clear_text_btn = gr.Button("Clear Text")
+            text_input = gr.Textbox(label="Text", lines=4, placeholder="Type a sentence or click Random Sample...")
             text_btn = gr.Button("Generate Voice", variant="primary")
             text_audio = gr.Audio(label="Output", type="filepath", autoplay=True)
             text_used = gr.Textbox(label="Text Used", lines=3)
             text_timing = gr.Textbox(label="Timing", lines=1)
+            random_text_btn.click(fn=random_text_sample, inputs=[], outputs=[text_input])
+            clear_text_btn.click(fn=lambda: "", inputs=[], outputs=[text_input])
             text_btn.click(
                 fn=text_to_voice_once,
                 inputs=[text_input, api_key_input, voice_id_input, model_id_input, stability_input, similarity_input],
@@ -517,12 +695,59 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
             )
 
         with gr.Tab("2. Recorded Clip Voice Changer"):
-            gr.Markdown("Record or upload a clip. The app transcribes it and speaks the same content in the cloned voice.", elem_classes="mode-note")
+            gr.Markdown("Use a prompt as the source sentence, record it or upload an example clip, then convert the spoken content into the cloned voice.", elem_classes="mode-note")
+            with gr.Row():
+                random_prompt_btn = gr.Button("Random Recording Prompt")
+                generate_examples_btn = gr.Button("Generate Example Recordings")
+            recording_prompt = gr.Textbox(
+                label="Prompt to read aloud",
+                lines=3,
+                value="My voice confirms my identity for this verification test.",
+                interactive=True,
+            )
+            with gr.Accordion("Example recording prompts", open=False):
+                gr.Examples(
+                    examples=[[p] for p in RECORDING_PROMPTS],
+                    inputs=[recording_prompt],
+                    label="Click a prompt to use it",
+                )
+            with gr.Accordion("Generated example recordings", open=False):
+                gr.Markdown("These are source/example clips generated from `ELEVENLABS_EXAMPLE_VOICE_ID`. Example 1 is automatically loaded into the clip input after generation.")
+                example_path_1 = gr.State()
+                example_path_2 = gr.State()
+                example_path_3 = gr.State()
+                with gr.Row():
+                    example_audio_1 = gr.Audio(label="Example 1", type="filepath")
+                    example_audio_2 = gr.Audio(label="Example 2", type="filepath")
+                    example_audio_3 = gr.Audio(label="Example 3", type="filepath")
+                with gr.Row():
+                    use_example_1_btn = gr.Button("Use Example 1")
+                    use_example_2_btn = gr.Button("Use Example 2")
+                    use_example_3_btn = gr.Button("Use Example 3")
+                example_summary = gr.Textbox(label="Generated examples", lines=5)
             clip_input = gr.Audio(label="Record or upload voice clip", sources=["microphone", "upload"], type="filepath")
             clip_btn = gr.Button("Convert Clip", variant="primary")
             clip_audio_output = gr.Audio(label="Output", type="filepath", autoplay=True)
             clip_transcript_output = gr.Textbox(label="Transcript", lines=4)
             clip_timing_output = gr.Textbox(label="Timing", lines=1)
+            random_prompt_btn.click(fn=random_recording_prompt, inputs=[], outputs=[recording_prompt])
+            generate_examples_btn.click(
+                fn=generate_example_recordings,
+                inputs=[api_key_input, example_voice_id_input, model_id_input, stability_input, similarity_input],
+                outputs=[
+                    example_audio_1,
+                    example_audio_2,
+                    example_audio_3,
+                    example_path_1,
+                    example_path_2,
+                    example_path_3,
+                    example_summary,
+                    clip_input,
+                ],
+            )
+            use_example_1_btn.click(fn=use_example_recording, inputs=[example_path_1], outputs=[clip_input])
+            use_example_2_btn.click(fn=use_example_recording, inputs=[example_path_2], outputs=[clip_input])
+            use_example_3_btn.click(fn=use_example_recording, inputs=[example_path_3], outputs=[clip_input])
             clip_btn.click(
                 fn=recorded_clip_to_cloned_voice,
                 inputs=[clip_input, api_key_input, voice_id_input, model_id_input, stability_input, similarity_input],
@@ -530,17 +755,7 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
             )
 
         with gr.Tab("3. Continuous Mic Voice Changer"):
-            gr.Markdown("Speak one sentence, pause briefly, then the cloned voice plays. Use headphones to avoid duplicated feedback.", elem_classes="mode-note")
-            with gr.Row():
-                start_btn = gr.Button("Start", variant="primary")
-                stop_btn = gr.Button("Stop")
-                clear_btn = gr.Button("Clear")
-            status_output = gr.Textbox(label="Status", lines=1)
-            live_status_output = gr.Textbox(label="Live Status", lines=1)
-            latest_audio = gr.Audio(label="Latest Output", type="filepath", autoplay=True)
-            with gr.Row():
-                latest_transcript = gr.Textbox(label="Latest Transcript", lines=3)
-                timing_output = gr.Textbox(label="Latest Timing", lines=3)
+            gr.Markdown("1. Start mic. 2. Speak one short sentence. 3. Pause and wait for cloned output. Use headphones to avoid feedback.", elem_classes="mode-note")
             with gr.Accordion("Advanced microphone settings", open=False):
                 with gr.Row():
                     device_index_input = gr.Textbox(
@@ -556,6 +771,16 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
                     silence_input = gr.Slider(label="Speech End Silence ms", minimum=300, maximum=2000, value=800, step=100)
                     min_speech_input = gr.Slider(label="Minimum Speech ms", minimum=300, maximum=3000, value=700, step=100)
                     playback_cooldown_input = gr.Slider(label="Playback Cooldown ms", minimum=0, maximum=3000, value=900, step=100)
+            with gr.Row():
+                start_btn = gr.Button("Start", variant="primary")
+                stop_btn = gr.Button("Stop")
+                clear_btn = gr.Button("Clear")
+            status_output = gr.Textbox(label="Status", lines=1)
+            live_status_output = gr.Textbox(label="Live Status", lines=1)
+            latest_audio = gr.Audio(label="Latest Output", type="filepath", autoplay=True)
+            with gr.Row():
+                latest_transcript = gr.Textbox(label="Latest Transcript", lines=3)
+                timing_output = gr.Textbox(label="Latest Timing", lines=3)
             with gr.Accordion("Session audio", open=False):
                 with gr.Row():
                     build_merge_btn = gr.Button("Build / Update Merged Audio")
@@ -597,22 +822,6 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
                 inputs=[],
                 outputs=[live_status_output, latest_audio, latest_transcript, timing_output, merged_audio, log_output],
             )
-
-    with gr.Accordion("Speaker Identification", open=False):
-        gr.Markdown(
-            f"Use this as a separate verification tool. Open in a new tab if the embedded frame is slow or blocked: [{SPEAKER_ID_URL}]({SPEAKER_ID_URL})."
-        )
-        gr.HTML(
-            f'<iframe class="external-frame" src="{SPEAKER_ID_URL}?embed=true"></iframe>'
-        )
-
-    with gr.Accordion("Deepfake Detection", open=False):
-        gr.Markdown(
-            f"Recommended: open this external Phonexia demo in a new tab rather than embedding it, because external cloud apps may block iframe embedding and audio is sent to that provider: [{DEEPFAKE_DETECTION_URL}]({DEEPFAKE_DETECTION_URL})."
-        )
-        gr.HTML(
-            f'<div class="external-card"><a href="{DEEPFAKE_DETECTION_URL}" target="_blank">Open Phonexia Deepfake Detection in a new tab</a></div>'
-        )
 
 
 demo.queue()
