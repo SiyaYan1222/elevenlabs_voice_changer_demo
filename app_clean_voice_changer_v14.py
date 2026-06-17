@@ -1,3 +1,4 @@
+import base64
 import os
 import random
 import wave
@@ -20,6 +21,21 @@ load_dotenv()
 ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(APP_DIR, "data")
+LOGO_PATH = os.path.join(DATA_DIR, "bixelab_logo.jpeg")
+
+def logo_html():
+    if os.path.exists(LOGO_PATH):
+        with open(LOGO_PATH, "rb") as logo_file:
+            logo_data = base64.b64encode(logo_file.read()).decode("ascii")
+        return (
+            '<div class="hero-logo-wrap">'
+            '<div class="bixelab-lockup">'
+            f'<img class="app-logo-mark" src="data:image/jpeg;base64,{logo_data}" alt="BixeLab logo mark" />'
+            '<span class="app-logo-text">BixeLab</span>'
+            '</div>'
+            '</div>'
+        )
+    return ""
 
 VOICE_LAB_URL = "https://elevenlabs.io/app/voice-lab"
 LINK_GROUPS = {
@@ -33,6 +49,7 @@ LINK_GROUPS = {
         ("Phonexia Speaker Identification", "https://zwlb2f42bkx9.demo.cloud.phonexia.com/app/speaker-identification"),
     ],
     "Deepfake detection": [
+        ("ElevenLabs AI Classifier", "https://elevenlabs.io/app/ai-classifier"),
         ("Phonexia Deepfake Detection", "https://zwlb2f42bkx9.demo.cloud.phonexia.com/app/deepfake-detection"),
         ("Resemble Detect", "https://app.resemble.ai/hub/detect"),
     ],
@@ -701,6 +718,144 @@ def render_comparison_html() -> str:
 
 
 CUSTOM_CSS = """
+.hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 34%);
+  align-items: center;
+  column-gap: 40px;
+}
+
+.hero-logo-wrap {
+  width: 100%;
+  max-width: 360px;
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  padding: 0 clamp(18px, 3vw, 48px) 0 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.bixelab-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-logo-mark {
+  width: 96px;
+  height: 96px;
+  border-radius: 0;
+  object-fit: contain;
+  flex-shrink: 0;
+  mix-blend-mode: multiply;
+}
+
+.app-logo-text {
+  color: #0f172a;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.elevenlabs-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.elevenlabs-symbol span {
+  display: block;
+  width: 9px;
+  height: 30px;
+  border-radius: 999px;
+  background: #0f172a;
+}
+
+.hero-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 11px;
+}
+
+.hero-kicker .tagline {
+  margin-bottom: 0 !important;
+}
+
+.elevenlabs-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid #dbeafe;
+  color: #334155;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.elevenlabs-mini .elevenlabs-symbol {
+  width: 14px;
+  height: 14px;
+  gap: 2px;
+}
+
+.elevenlabs-mini .elevenlabs-symbol span {
+  width: 3px;
+  height: 12px;
+}
+
+.hero-copy {
+  min-width: 280px;
+}
+
+@media (max-width: 760px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+    row-gap: 18px;
+  }
+
+  .hero-logo-wrap {
+    width: min(100%, 280px);
+    min-height: 70px;
+    justify-self: start;
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  .bixelab-lockup {
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .app-logo-mark {
+    width: 64px;
+    height: 64px;
+  }
+
+  .app-logo-text {
+    font-size: 32px;
+  }
+}
 :root {
   --primary: #2563eb;
   --primary-soft: #dbeafe;
@@ -731,18 +886,20 @@ html {
 }
 
 #hero {
-  padding: 24px 28px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 45%, #f5f3ff 100%);
-  border: 1px solid #dbeafe;
+  padding: 24px 28px 24px 30px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.94) 0%, rgba(238, 242, 255, 0.9) 56%, rgba(245, 243, 255, 0.86) 100%),
+    #f8fbff;
+  border: 1px solid #cfe0ff;
   color: var(--ink);
   margin-bottom: 16px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
 }
 
 #hero h1 {
   margin: 0 0 8px 0;
-  font-size: 34px;
+  font-size: 33px;
   line-height: 1.1;
   letter-spacing: -0.03em;
   color: #0f172a !important;
@@ -756,7 +913,7 @@ html {
 }
 
 .hero-actions {
-  margin-top: 16px;
+  margin-top: 18px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -764,8 +921,8 @@ html {
 
 .hero-button {
   display: inline-block;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 10px 15px;
+  border-radius: 11px;
   background: #2563eb;
   color: #ffffff !important;
   text-decoration: none !important;
@@ -782,7 +939,7 @@ html {
 
 #hero .tagline {
   display: inline-block;
-  margin-bottom: 10px;
+  margin-bottom: 11px;
   padding: 5px 10px;
   border-radius: 999px;
   background: #ffffffcc;
@@ -970,15 +1127,26 @@ textarea, input, .wrap, .block {
 
 with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
     gr.HTML(
-        """
+        f"""
         <div id="hero">
-          <div class="tagline">Local Demo · ElevenLabs Cloned Voice</div>
-          <h1>Voice Changer Lab</h1>
-          <p>Convert text, recorded clips, or live microphone speech into your cloned voice.</p>
-          <div class="hero-actions">
-            <a class="hero-button" href="https://elevenlabs.io/app/voice-lab" target="_blank">Open ElevenLabs Voice Lab</a>
-            <a class="hero-button secondary" href="#" onclick="document.getElementById('useful-links-anchor').scrollIntoView({behavior:'smooth', block:'start'}); return false;">Useful Links</a>
-          </div>
+        <div class="hero-inner">
+            <div class="hero-copy">
+            <div class="hero-kicker">
+                <div class="tagline">BixeLab Local Demo</div>
+                <div class="elevenlabs-mini" aria-label="Powered by ElevenLabs">
+                    <span class="elevenlabs-symbol" aria-hidden="true"><span></span><span></span></span>
+                    <span>ElevenLabs Cloned Voice</span>
+                </div>
+            </div>
+            <h1>Voice Changer Lab</h1>
+            <p>Convert text, recorded clips, or live microphone speech into your cloned voice.</p>
+            <div class="hero-actions">
+                <a class="hero-button" href="https://elevenlabs.io/app/voice-lab" target="_blank">Open ElevenLabs Voice Lab</a>
+                <a class="hero-button secondary" href="#" onclick="document.getElementById('useful-links-anchor').scrollIntoView({{behavior:'smooth', block:'start'}}); return false;">Useful Links</a>
+            </div>
+            </div>
+            {logo_html()}
+        </div>
         </div>
         """
     )
@@ -1155,8 +1323,7 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
         gr.Markdown("Mobile app references for consumer-style voice changer UX and screenshots.")
         gr.HTML(render_market_apps_html())
 
-    gr.HTML('<div id="useful-links-anchor" style="height: 1px;"></div>')
-    with gr.Accordion("Useful links", open=False):
+    with gr.Accordion("Useful links", open=False, elem_id="useful-links-anchor"):
         gr.HTML(render_useful_links_html())
 
     with gr.Accordion("Model / audio input performance comparison", open=False):
@@ -1212,4 +1379,8 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
 
 
 demo.queue()
-demo.launch(server_name="0.0.0.0", server_port=7860)
+launch_kwargs = {"server_name": os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")}
+server_port = os.getenv("GRADIO_SERVER_PORT")
+if server_port:
+    launch_kwargs["server_port"] = int(server_port)
+demo.launch(**launch_kwargs)
