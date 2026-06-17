@@ -21,7 +21,7 @@ load_dotenv()
 ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(APP_DIR, "data")
-LOGO_PATH = os.path.join(DATA_DIR, "bixelab_logo.jpeg")
+LOGO_PATH = os.path.join(APP_DIR, "public/bixelab_logo.jpeg")
 
 def logo_html():
     if os.path.exists(LOGO_PATH):
