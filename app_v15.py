@@ -92,6 +92,8 @@ MARKET_APP_ROWS = [
 ]
 
 COMPARISON_AUDIO_FILES = {
+    "original_source": "Divij_source.mp3",
+    "sts_source": "sample_male.wav",
     "eleven_tts": "Divij_2min_ElevenLabs_InstantClone_TTS.mp3",
     "eleven_sts": "Divij_2min_ElevenLabs_InstantClone_STS.mp3",
     "cartesia_tts": "Divij_10sec_Cartesia_InstantClone_TTS.wav",
@@ -718,7 +720,7 @@ def render_comparison_html() -> str:
     )
 
 
-DEFAULT_IDV_LOCAL_URL = "0.0.0.0:7860"
+DEFAULT_IDV_LOCAL_URL = "localhost:7860"
 DEFAULT_IDV_LAN_URL = "192.168.242.249:7860"
 
 
@@ -726,14 +728,30 @@ def normalize_idv_url(raw_url: str) -> str:
     url = (raw_url or "").strip()
     if not url:
         url = DEFAULT_IDV_LAN_URL
+    if url.startswith("0.0.0.0:"):
+        url = url.replace("0.0.0.0:", "localhost:", 1)
+    elif url.startswith("http://0.0.0.0:"):
+        url = url.replace("http://0.0.0.0:", "http://localhost:", 1)
+    elif url.startswith("https://0.0.0.0:"):
+        url = url.replace("https://0.0.0.0:", "https://localhost:", 1)
     if not url.startswith(("http://", "https://")):
         url = f"http://{url}"
     return url
 
 
+def idv_microphone_hint(url: str) -> str:
+    if url.startswith("http://localhost") or url.startswith("http://127.0.0.1") or url.startswith("https://"):
+        return "The embedded recorder can request microphone access from this page."
+    return (
+        "If the recorder cannot see the microphone on a LAN IP, open it in a new tab "
+        "or serve the IDV app over HTTPS. Browsers often block microphone capture on plain HTTP remote hosts."
+    )
+
+
 def render_idv_iframe(raw_url: str) -> str:
     url = normalize_idv_url(raw_url)
     safe_url = html.escape(url, quote=True)
+    safe_hint = html.escape(idv_microphone_hint(url))
     return f"""
     <div class="idv-embed-shell">
       <div class="idv-embed-topline">
@@ -741,10 +759,11 @@ def render_idv_iframe(raw_url: str) -> str:
           <div class="idv-embed-kicker">Remote IDV workflow</div>
           <h3>NVIDIA TitaNet Speaker Verification</h3>
           <p>Embedded from <code>{safe_url}</code>. Keep the TitaNet app running separately on that machine.</p>
+          <p class="idv-mic-hint">{safe_hint}</p>
         </div>
         <a href="{safe_url}" target="_blank" rel="noopener noreferrer">Open in new tab</a>
       </div>
-      <iframe class="idv-embed-frame" src="{safe_url}" title="NVIDIA TitaNet IDV verification app"></iframe>
+      <iframe class="idv-embed-frame" src="{safe_url}" title="NVIDIA TitaNet IDV verification app" allow="microphone; camera; autoplay; clipboard-read; clipboard-write"></iframe>
     </div>
     """
 
@@ -1150,6 +1169,33 @@ textarea, input, .wrap, .block {
   border-top: 1px solid #e5e7eb;
   font-size: 13px;
 }
+.audio-comparison-row {
+  margin: 10px 0 !important;
+  padding: 12px !important;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+}
+.audio-comparison-row.source-row {
+  background: #f8fafc;
+  border-left: 6px solid #64748b;
+}
+.audio-comparison-row.rank-one {
+  background: #ecfdf5;
+  border-left: 6px solid #10b981;
+}
+.audio-comparison-row.rank-two {
+  background: #eff6ff;
+  border-left: 6px solid #3b82f6;
+}
+.audio-comparison-row.rank-three {
+  background: #fff7ed;
+  border-left: 6px solid #f97316;
+}
+.audio-comparison-row > .form,
+.audio-comparison-row > .block,
+.audio-comparison-row .audio {
+  background: transparent !important;
+}
 
 /* Remote IDV iframe */
 .idv-embed-shell {
@@ -1185,6 +1231,11 @@ textarea, input, .wrap, .block {
   margin: 0;
   color: #475569;
   font-size: 13px;
+}
+.idv-embed-topline .idv-mic-hint {
+  margin-top: 6px;
+  color: #0f766e;
+  font-weight: 700;
 }
 .idv-embed-topline code {
   color: #0f172a;
@@ -1458,7 +1509,20 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
                 "The comparison players below load from the local `data/` folder when the files exist. "
                 "You can also upload/replace files manually. Expected folder: `./data/`."
             )
-            with gr.Row():
+            with gr.Row(elem_classes=["audio-comparison-row", "source-row"]):
+                original_source_audio = gr.Audio(
+                    value=data_audio_path("original_source"),
+                    label="Original audio · Divij_source.mp3",
+                    sources=["upload"],
+                    type="filepath",
+                )
+                sts_source_audio = gr.Audio(
+                    value=data_audio_path("sts_source"),
+                    label="STS source audio · sample_male.wav",
+                    sources=["upload"],
+                    type="filepath",
+                )
+            with gr.Row(elem_classes=["audio-comparison-row", "rank-one"]):
                 eleven_tts_audio = gr.Audio(
                     value=data_audio_path("eleven_tts"),
                     label="ElevenLabs TTS · Divij_2min_ElevenLabs_InstantClone_TTS.mp3",
@@ -1471,7 +1535,7 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
                     sources=["upload"],
                     type="filepath",
                 )
-            with gr.Row():
+            with gr.Row(elem_classes=["audio-comparison-row", "rank-two"]):
                 cartesia_tts_audio = gr.Audio(
                     value=data_audio_path("cartesia_tts"),
                     label="Cartesia TTS · Divij_10sec_Cartesia_InstantClone_TTS.wav",
@@ -1484,7 +1548,7 @@ with gr.Blocks(title="Voice Changer Lab", css=CUSTOM_CSS) as demo:
                     sources=["upload"],
                     type="filepath",
                 )
-            with gr.Row():
+            with gr.Row(elem_classes=["audio-comparison-row", "rank-three"]):
                 resemble_tts_audio = gr.Audio(
                     value=data_audio_path("resemble_tts"),
                     label="Resemble TTS · Divij_2min_Resemble_Clone_TTS.wav",
